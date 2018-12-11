@@ -30,6 +30,7 @@ data Region = Region
   , xMax :: Int
   , yMin :: Int
   , yMax :: Int
+  , claimId :: Int
   } deriving (Show)
 
 data Claim = Claim
@@ -62,7 +63,7 @@ instance Ord BasedSegment where
 instance Eq Region where
   r1 == r2 = xMin r1 == xMin r2
 
-instance Ord Region where
+instance Ord Region  where
   r1 <= r2 = xMin r1 <= xMin r2
 
 parseClaim :: Parser Claim
@@ -88,6 +89,7 @@ mkRegion c =
       yMax = (fromTop c) + (height c)
       xMax = (fromLeft c) + (width c)
       xMin = (fromLeft c) + 1
+      claimId = identifier c
   in Region {..}
 
 mkClaim :: Text -> Claim
@@ -149,8 +151,29 @@ calculateSum bx = let
       in
         length (inTwoOrMore boundarySegments) + f newActiveSegments nx zs
 
+
+regionsIntersect :: Region -> Region -> Bool
+regionsIntersect r1 r2 = let
+  xIntersects = min (xMax r1) (xMax r2) - max (xMin r1) (xMin r2) >= 0
+  yIntersects = min (yMax r1) (yMax r2) - max (yMin r1) (yMin r2) >= 0
+  in
+  xIntersects && yIntersects
+
 solutionOne :: [Text] -> Int
 solutionOne =  calculateSum . segments . fmap (mkRegion . mkClaim)
 
+findNonIntersecting :: [Region] -> Int
+findNonIntersecting [] = error "One claim should not intersec with any other"
+findNonIntersecting regions = g regions where
+  g (r:rx) = f regions where
+    f [] = claimId r :: Int
+    f (s:sx) = if (claimId r /= claimId s) && regionsIntersect r s then g rx else f sx
+
+solutionTwo :: [Text] -> Int
+solutionTwo = findNonIntersecting . fmap (mkRegion . mkClaim)
+
 main :: IO ()
-main = putIntLn . solutionOne =<< readInput "input.txt"
+main = do
+  input <- readInput "input.txt"
+  putIntLn $ solutionOne input
+  putIntLn $ solutionTwo input
